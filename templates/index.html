@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Downloader</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        input[type="url"] {
+            width: 80%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 0.8rem 1.5rem;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #4cae4c;
+        }
+        .message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            border: 1px solid #d6e9c6;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            color: #a94442;
+        }
+        #download-links a {
+             display: block;
+             margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Universal Downloader</h1>
+        <form id="download-form">
+            <input type="url" id="url" name="url" placeholder="Paste URL here" required>
+            <button type="submit">Download</button>
+        </form>
+        <div id="message" class="message" style="display: none;"></div>
+        <div id="download-links"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('download-form');
+        const messageDiv = document.getElementById('message');
+        const downloadLinksDiv = document.getElementById('download-links');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            messageDiv.style.display = 'none';
+            messageDiv.className = 'message'; // Reset classes
+            downloadLinksDiv.innerHTML = ''; // Clear previous links
+
+            const url = document.getElementById('url').value;
+            const formData = new FormData();
+            formData.append('url', url);
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = result.message || 'Download successful!';
+                    messageDiv.classList.add('success');
+                    messageDiv.style.display = 'block';
+
+                    if (result.files && result.files.length > 0) {
+                        result.files.forEach(file => {
+                            const link = document.createElement('a');
+                            link.href = `/downloads/${encodeURIComponent(file)}`;
+                            link.textContent = file;
+                            link.download = file; // Suggest filename
+                            downloadLinksDiv.appendChild(link);
+                        });
+                    }
+                } else {
+                    messageDiv.textContent = result.error || 'An error occurred.';
+                    messageDiv.classList.add('error');
+                    messageDiv.style.display = 'block';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Network error or server issue.';
+                messageDiv.classList.add('error');
+                messageDiv.style.display = 'block';
+                console.error('Fetch error:', error);
+            }
+        });
+    </script>
+</body>
+</html> 
