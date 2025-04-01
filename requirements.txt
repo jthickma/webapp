@@ -1,5 +1,6 @@
 Flask==2.3.3
 gunicorn==21.2.0
 Werkzeug==2.3.7
-yt-dlp
-gallery-dl 
+yt-dlp==2024.3.10
+gallery-dl==1.26.3
+Flask-Limiter==3.5.0 

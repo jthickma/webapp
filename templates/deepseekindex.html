@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Media Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #6b46c1 0%, #4299e1 100%);
+        }
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .download-btn {
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="gradient-bg text-white py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl mb-6">
+                Universal Media Downloader
+            </h1>
+            <p class="text-xl text-indigo-100 max-w-3xl mx-auto">
+                Download videos from YouTube, Instagram, TikTok and more with a single click!
+            </p>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 -mt-16">
+        <div class="bg-white rounded-xl shadow-xl overflow-hidden">
+            <div class="p-6 sm:p-8">
+                <div class="flex items-center mb-6">
+                    <div class="flex-shrink-0 bg-indigo-500 p-3 rounded-lg">
+                        <i class="fas fa-download text-white text-xl"></i>
+                    </div>
+                    <h2 class="ml-4 text-2xl font-bold text-gray-900">Enter Video URL</h2>
+                </div>
+                
+                <form id="downloadForm" class="space-y-6">
+                    <div>
+                        <div class="flex rounded-md shadow-sm">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">
+                                <i class="fas fa-link"></i>
+                            </span>
+                            <input type="url" id="urlInput" required 
+                                   class="focus:ring-indigo-500 focus:border-indigo-500 flex-1 block w-full rounded-none rounded-r-md sm:text-sm border-gray-300 p-3 border"
+                                   placeholder="https://www.youtube.com/watch?v=..." 
+                                   pattern="https?://.+">
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500" id="urlHelp">
+                            Supported sites: YouTube, Instagram, TikTok
+                        </p>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input id="highQuality" name="highQuality" type="checkbox" 
+                                   class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="highQuality" class="ml-2 block text-sm text-gray-700">
+                                Highest quality available
+                            </label>
+                        </div>
+                        
+                        <button type="submit" id="downloadBtn"
+                                class="download-btn inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <i class="fas fa-download mr-2"></i> Download
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="statusSection" class="hidden bg-gray-50 p-6 border-t border-gray-200">
+                <div class="flex items-center">
+                    <div id="statusIcon" class="flex-shrink-0">
+                        <i class="fas fa-spinner fa-spin text-indigo-500 text-xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 id="statusTitle" class="text-lg font-medium text-gray-900">Processing your request</h3>
+                        <p id="statusMessage" class="text-sm text-gray-500">Please wait while we download your media...</p>
+                    </div>
+                </div>
+                <div id="progressBar" class="mt-4 hidden">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="resultsSection" class="hidden bg-gray-50 p-6 border-t border-gray-200">
+                <div class="flex items-center mb-4">
+                    <div class="flex-shrink-0 bg-green-500 p-2 rounded-md">
+                        <i class="fas fa-check text-white"></i>
+                    </div>
+                    <h3 class="ml-3 text-lg font-medium text-gray-900">Download Complete!</h3>
+                </div>
+                
+                <div id="fileList" class="grid gap-4 sm:grid-cols-2">
+                    <!-- Files will be dynamically inserted here -->
+                </div>
+            </div>
+            
+            <div id="errorSection" class="hidden bg-red-50 p-6 border-t border-red-200">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-circle text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 id="errorTitle" class="text-sm font-medium text-red-800">Error</h3>
+                        <div id="errorMessage" class="mt-2 text-sm text-red-700">
+                            <p>There was an error processing your request.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-12 bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">How it works</h3>
+                <div class="grid gap-6 sm:grid-cols-3">
+                    <div class="flex flex-col items-center text-center">
+                        <div class="bg-indigo-100 p-3 rounded-full mb-3">
+                            <i class="fas fa-link text-indigo-600 text-xl"></i>
+                        </div>
+                        <h4 class="font-medium text-gray-900">1. Paste URL</h4>
+                        <p class="mt-1 text-sm text-gray-500">Copy and paste the link to the video you want to download</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center">
+                        <div class="bg-indigo-100 p-3 rounded-full mb-3">
+                            <i class="fas fa-cloud-download-alt text-indigo-600 text-xl"></i>
+                        </div>
+                        <h4 class="font-medium text-gray-900">2. Click Download</h4>
+                        <p class="mt-1 text-sm text-gray-500">Our service will fetch the video from the source</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center">
+                        <div class="bg-indigo-100 p-3 rounded-full mb-3">
+                            <i class="fas fa-file-download text-indigo-600 text-xl"></i>
+                        </div>
+                        <h4 class="font-medium text-gray-900">3. Save File</h4>
+                        <p class="mt-1 text-sm text-gray-500">Download the file directly to your device</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="md:flex md:items-center md:justify-between">
+                <div class="flex justify-center md:order-2 space-x-6">
+                    <a href="#" class="text-gray-400 hover:text-white">
+                        <i class="fab fa-github"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                </div>
+                <div class="mt-8 md:mt-0 md:order-1">
+                    <p class="text-center text-base text-gray-400">
+                        &copy; 2023 Universal Media Downloader. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const downloadForm = document.getElementById('downloadForm');
+            const urlInput = document.getElementById('urlInput');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const statusSection = document.getElementById('statusSection');
+            const resultsSection = document.getElementById('resultsSection');
+            const errorSection = document.getElementById('errorSection');
+            const fileList = document.getElementById('fileList');
+            const progressBar = document.getElementById('progressBar');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusMessage = document.getElementById('statusMessage');
+            const errorTitle = document.getElementById('errorTitle');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Add rate limit tracking
+            let lastRequestTime = 0;
+            const RATE_LIMIT_DELAY = 6000; // 6 seconds (10 requests per minute)
+            const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+
+            function updateButtonState(isLoading) {
+                downloadBtn.disabled = isLoading;
+                downloadBtn.innerHTML = isLoading ? 
+                    '<i class="fas fa-spinner fa-spin mr-2"></i> Processing...' : 
+                    '<i class="fas fa-download mr-2"></i> Download';
+            }
+
+            function showProgress(progress) {
+                progressBar.classList.remove('hidden');
+                document.querySelector('#progressBar div:last-child').style.width = `${progress}%`;
+            }
+
+            downloadForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Check rate limiting
+                const now = Date.now();
+                if (now - lastRequestTime < RATE_LIMIT_DELAY) {
+                    showError(`Please wait ${Math.ceil((RATE_LIMIT_DELAY - (now - lastRequestTime)) / 1000)} seconds before trying again.`);
+                    return;
+                }
+                lastRequestTime = now;
+                
+                // Reset UI
+                resultsSection.classList.add('hidden');
+                errorSection.classList.add('hidden');
+                statusSection.classList.remove('hidden');
+                progressBar.classList.remove('hidden');
+                showProgress(0);
+                updateButtonState(true);
+                
+                // Update status UI
+                statusIcon.innerHTML = '<i class="fas fa-spinner fa-spin text-indigo-500 text-xl"></i>';
+                statusTitle.textContent = 'Processing your request';
+                statusMessage.textContent = 'Please wait while we download your media...';
+                
+                const url = urlInput.value.trim();
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('url', url);
+                    
+                    const response = await fetch('/download', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        // Success - show files
+                        showDownloadResults(data);
+                    } else {
+                        // Handle different error status codes
+                        let errorMessage = data.error || 'An unknown error occurred';
+                        if (response.status === 429) {
+                            errorMessage = 'Too many requests. Please try again later.';
+                        } else if (response.status === 400) {
+                            errorMessage = 'Invalid URL or unsupported platform.';
+                        } else if (response.status === 504) {
+                            errorMessage = 'Download timed out. Please try again.';
+                        }
+                        showError(errorMessage, data.request_id);
+                    }
+                } catch (error) {
+                    showError('Network error. Please try again later.');
+                    console.error('Error:', error);
+                } finally {
+                    updateButtonState(false);
+                }
+            });
+            
+            function showDownloadResults(data) {
+                statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-500 text-xl"></i>';
+                statusTitle.textContent = 'Download Complete!';
+                statusMessage.textContent = 'Your files are ready to download';
+                showProgress(100);
+                
+                // Clear previous files
+                fileList.innerHTML = '';
+                
+                // Add each file to the list
+                data.files.forEach(file => {
+                    const fileExt = file.split('.').pop().toLowerCase();
+                    let icon = 'fa-file';
+                    
+                    if (['mp4', 'mov', 'avi', 'mkv'].includes(fileExt)) {
+                        icon = 'fa-file-video';
+                    } else if (['mp3', 'wav', 'ogg'].includes(fileExt)) {
+                        icon = 'fa-file-audio';
+                    } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                        icon = 'fa-file-image';
+                    }
+                    
+                    const fileCard = document.createElement('div');
+                    fileCard.className = 'file-card bg-white p-4 rounded-lg border border-gray-200 transition-all duration-300 ease-in-out';
+                    fileCard.innerHTML = `
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 bg-indigo-100 p-3 rounded-md">
+                                <i class="fas ${icon} text-indigo-600"></i>
+                            </div>
+                            <div class="ml-4 flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-sm font-medium text-gray-900 truncate">${file}</h4>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        ${fileExt.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div class="mt-2 flex justify-end">
+                                    <button onclick="downloadFile('${data.dir_id}', '${file}')" 
+                                            class="download-btn inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        <i class="fas fa-download mr-1"></i> Download
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    fileList.appendChild(fileCard);
+                });
+                
+                resultsSection.classList.remove('hidden');
+            }
+            
+            function showError(message, requestId = null) {
+                statusIcon.innerHTML = '<i class="fas fa-exclamation-circle text-red-500 text-xl"></i>';
+                statusTitle.textContent = 'Download Failed';
+                statusMessage.textContent = 'There was an error processing your request';
+                showProgress(0);
+                
+                errorTitle.textContent = 'Error';
+                let errorHtml = `<p>${message}</p>`;
+                if (requestId) {
+                    errorHtml += `<p class="mt-2 text-xs text-gray-500">Request ID: ${requestId}</p>`;
+                }
+                errorMessage.innerHTML = errorHtml;
+                errorSection.classList.remove('hidden');
+            }
+            
+            // URL validation
+            urlInput.addEventListener('input', function() {
+                const url = this.value.trim();
+                const isValid = url.match(/^https?:\/\//i);
+                
+                if (isValid) {
+                    this.classList.remove('border-red-300');
+                    this.classList.add('border-gray-300');
+                } else {
+                    this.classList.remove('border-gray-300');
+                    this.classList.add('border-red-300');
+                }
+            });
+
+            // Global download function
+            window.downloadFile = async function(dirId, filename) {
+                try {
+                    const response = await fetch(`/downloads/${dirId}/${encodeURIComponent(filename)}`);
+                    
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Download failed');
+                    }
+
+                    // Get the filename from the Content-Disposition header or use the original filename
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let downloadFilename = filename;
+                    if (contentDisposition) {
+                        const matches = /filename="(.+)"/.exec(contentDisposition);
+                        if (matches) {
+                            downloadFilename = matches[1];
+                        }
+                    }
+
+                    // Create a blob from the response
+                    const blob = await response.blob();
+                    
+                    // Check file size
+                    if (blob.size > MAX_FILE_SIZE) {
+                        throw new Error('File is too large to download');
+                    }
+
+                    // Create a download link and trigger it
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = downloadFilename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } catch (error) {
+                    showError(error.message);
+                }
+            };
+        });
+    </script>
+</body>
+</html>
