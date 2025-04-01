@@ -101,7 +101,7 @@
                     if (result.files && result.files.length > 0) {
                         result.files.forEach(file => {
                             const link = document.createElement('a');
-                            link.href = `/downloads/${encodeURIComponent(file)}`;
+                            link.href = `/downloads/${encodeURIComponent(result.dir_id)}/${encodeURIComponent(file)}`;
                             link.textContent = file;
                             link.download = file; // Suggest filename
                             downloadLinksDiv.appendChild(link);

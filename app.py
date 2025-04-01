@@ -87,8 +87,14 @@ def download():
         # Get list of downloaded files
         downloaded_files = [f for f in os.listdir(unique_dir) if os.path.isfile(os.path.join(unique_dir, f))]
         if downloaded_files:
+            # Return the unique directory ID along with the files
+            unique_dir_id = os.path.basename(unique_dir)
             logging.info(f"Download successful. Files: {downloaded_files}")
-            return jsonify({"message": "Download successful", "files": downloaded_files})
+            return jsonify({
+                "message": "Download successful", 
+                "files": downloaded_files,
+                "dir_id": unique_dir_id
+            })
         else:
             logging.warning("Download successful, but no files were created")
             return jsonify({"error": "Download successful, but no files were created"}), 500
@@ -103,16 +109,21 @@ def download():
         logging.exception(f"An unexpected error occurred: {str(e)}")
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route('/downloads/<filename>')
-def serve_download(filename):
+@app.route('/downloads/<dir_id>/<filename>')
+def serve_download(dir_id, filename):
     try:
-        # Security: Check if the file exists within the download directory
-        filepath = os.path.join(DOWNLOAD_DIR, filename)
+        # Construct the full path to the file
+        file_dir = os.path.join(DOWNLOAD_DIR, dir_id)
+        filepath = os.path.join(file_dir, filename)
+        
+        # Security: Check if the file exists and is within the download directory
         if not os.path.exists(filepath) or not filepath.startswith(DOWNLOAD_DIR):
+            logging.error(f"File not found or access denied: {filepath}")
             return jsonify({"error": "File not found or access denied"}), 404
 
-        return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
+        return send_from_directory(file_dir, filename, as_attachment=True)
     except FileNotFoundError:
+        logging.error(f"File not found: {filename}")
         return jsonify({"error": "File not found"}), 404
     except Exception as e:
         logging.error(f"Error serving file: {e}")
