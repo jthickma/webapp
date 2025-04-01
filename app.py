@@ -4,6 +4,7 @@ import os
 import re
 import logging
 import uuid  # For generating unique filenames
+import stat  # For setting file permissions
 
 app = Flask(__name__)
 
@@ -13,14 +14,22 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 DOWNLOAD_DIR = os.environ.get("DOWNLOAD_DIR", "/app/downloads")
 # Ensure DOWNLOAD_DIR is absolute and safe
 DOWNLOAD_DIR = os.path.abspath(DOWNLOAD_DIR)
-if not os.path.exists(DOWNLOAD_DIR):
-    os.makedirs(DOWNLOAD_DIR)
+
+# Create download directory with proper permissions
+def ensure_download_dir():
+    if not os.path.exists(DOWNLOAD_DIR):
+        os.makedirs(DOWNLOAD_DIR, mode=0o755, exist_ok=True)
+    # Ensure the directory is writable
+    os.chmod(DOWNLOAD_DIR, 0o755)
+
+# Initialize download directory
+ensure_download_dir()
 
 # Validate DOWNLOAD_DIR (important security measure)
 if not DOWNLOAD_DIR.startswith("/app/downloads"):  # Adjust prefix as needed
-    logging.error("Invalid DOWNLOAD_DIR configuration.  Using default.")
+    logging.error("Invalid DOWNLOAD_DIR configuration. Using default.")
     DOWNLOAD_DIR = "/app/downloads"
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    ensure_download_dir()
 
 # Basic URL validation
 def is_valid_url(url):
@@ -46,16 +55,23 @@ def download():
         return jsonify({"error": "Invalid URL"}), 400
 
     try:
+        # Ensure download directory exists and is writable
+        ensure_download_dir()
+        
+        # Generate a unique subdirectory for this download
+        unique_dir = os.path.join(DOWNLOAD_DIR, str(uuid.uuid4()))
+        os.makedirs(unique_dir, mode=0o755, exist_ok=True)
+
         # Determine the download tool
         if "youtube.com" in url or "youtu.be" in url:
             tool = "yt-dlp"
-            command = [tool, "-P", DOWNLOAD_DIR, url]
+            command = [tool, "-P", unique_dir, url]
         elif "instagram.com" in url:
             tool = "gallery-dl"
-            command = [tool, "-o", f"{DOWNLOAD_DIR}/%(title)s.%(ext)s", url]
+            command = [tool, "-D", unique_dir, "-o", "%(title)s.%(ext)s", url]
         elif "tiktok.com" in url:
             tool = "gallery-dl"
-            command = [tool, "-o", f"{DOWNLOAD_DIR}/%(title)s.%(ext)s", url]
+            command = [tool, "-D", unique_dir, "-o", "%(title)s.%(ext)s", url]
         else:
             logging.warning(f"No suitable downloader found for: {url}")
             return jsonify({"error": "No suitable downloader found for this URL"}), 400
@@ -68,8 +84,8 @@ def download():
             logging.error(f"Download failed: {stderr}")
             return jsonify({"error": f"Download failed: {stderr}"}), 500
 
-        # Basic file name extraction (improve as needed)
-        downloaded_files = [f for f in os.listdir(DOWNLOAD_DIR) if os.path.isfile(os.path.join(DOWNLOAD_DIR, f))]
+        # Get list of downloaded files
+        downloaded_files = [f for f in os.listdir(unique_dir) if os.path.isfile(os.path.join(unique_dir, f))]
         if downloaded_files:
             logging.info(f"Download successful. Files: {downloaded_files}")
             return jsonify({"message": "Download successful", "files": downloaded_files})
