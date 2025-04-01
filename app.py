@@ -18,9 +18,10 @@ DOWNLOAD_DIR = os.path.abspath(DOWNLOAD_DIR)
 # Create download directory with proper permissions
 def ensure_download_dir():
     if not os.path.exists(DOWNLOAD_DIR):
-        os.makedirs(DOWNLOAD_DIR, mode=0o755, exist_ok=True)
-    # Ensure the directory is writable
-    os.chmod(DOWNLOAD_DIR, 0o755)
+        os.makedirs(DOWNLOAD_DIR, mode=0o777, exist_ok=True)
+    # Ensure the directory is writable and readable by all
+    os.chmod(DOWNLOAD_DIR, 0o777)
+    logging.info(f"Download directory permissions set: {oct(os.stat(DOWNLOAD_DIR).st_mode)[-3:]}")
 
 # Initialize download directory
 ensure_download_dir()
@@ -60,7 +61,8 @@ def download():
         
         # Generate a unique subdirectory for this download
         unique_dir = os.path.join(DOWNLOAD_DIR, str(uuid.uuid4()))
-        os.makedirs(unique_dir, mode=0o755, exist_ok=True)
+        os.makedirs(unique_dir, mode=0o777, exist_ok=True)
+        logging.info(f"Created unique directory: {unique_dir} with permissions: {oct(os.stat(unique_dir).st_mode)[-3:]}")
 
         # Determine the download tool
         if "youtube.com" in url or "youtu.be" in url:
@@ -87,6 +89,12 @@ def download():
         # Get list of downloaded files
         downloaded_files = [f for f in os.listdir(unique_dir) if os.path.isfile(os.path.join(unique_dir, f))]
         if downloaded_files:
+            # Set proper permissions for downloaded files
+            for file in downloaded_files:
+                file_path = os.path.join(unique_dir, file)
+                os.chmod(file_path, 0o666)  # Make files readable and writable by all
+                logging.info(f"Set file permissions for {file_path}: {oct(os.stat(file_path).st_mode)[-3:]}")
+
             # Return the unique directory ID along with the files
             unique_dir_id = os.path.basename(unique_dir)
             logging.info(f"Download successful. Files: {downloaded_files}")
@@ -116,10 +124,31 @@ def serve_download(dir_id, filename):
         file_dir = os.path.join(DOWNLOAD_DIR, dir_id)
         filepath = os.path.join(file_dir, filename)
         
+        logging.info(f"Attempting to serve file: {filepath}")
+        logging.info(f"File exists: {os.path.exists(filepath)}")
+        if os.path.exists(filepath):
+            logging.info(f"File permissions: {oct(os.stat(filepath).st_mode)[-3:]}")
+            logging.info(f"File owner: {os.stat(filepath).st_uid}")
+            logging.info(f"File group: {os.stat(filepath).st_gid}")
+        
         # Security: Check if the file exists and is within the download directory
-        if not os.path.exists(filepath) or not filepath.startswith(DOWNLOAD_DIR):
-            logging.error(f"File not found or access denied: {filepath}")
-            return jsonify({"error": "File not found or access denied"}), 404
+        if not os.path.exists(filepath):
+            logging.error(f"File not found: {filepath}")
+            return jsonify({"error": "File not found"}), 404
+            
+        if not filepath.startswith(DOWNLOAD_DIR):
+            logging.error(f"Access denied: File path {filepath} is outside download directory")
+            return jsonify({"error": "Access denied"}), 403
+
+        # Ensure file is readable
+        if not os.access(filepath, os.R_OK):
+            logging.error(f"File not readable: {filepath}")
+            # Try to fix permissions if file exists but isn't readable
+            try:
+                os.chmod(filepath, 0o666)
+                logging.info(f"Fixed file permissions for {filepath}")
+            except Exception as e:
+                logging.error(f"Failed to fix file permissions: {e}")
 
         return send_from_directory(file_dir, filename, as_attachment=True)
     except FileNotFoundError:
